@@ -71,6 +71,10 @@ end
 wfmstk_c=permute(migv,[4 1 2 3]); % note here exchange dimensions, should be T-X-Y-Z or T-N-E-D
 migv_max=max(wfmstk_c(:)); % the maximum migration value
 
+migv_min=min(wfmstk_c(:)); % the minimum migration value
+
+
+
 % check if need to normalize the migration volume before showing
 if ~isempty(mcm.snormrg)
     fprintf('Normalize the migration volume to %f-%f before viewing.\n',mcm.snormrg(1),mcm.snormrg(2));
@@ -78,32 +82,60 @@ if ~isempty(mcm.snormrg)
 end
 
 % find the maximum migration point
+Mplot=mcm.plot
 para.taxis = trace.t0 + seconds(mcm.st0); % searched origin times (absolute times, in datetime format)
 para.ctlpct = mcm.ctlpct; % ratio over the maximum to plot a contour-line
-[tn,xn,yn,zn]=migmaxplt(wfmstk_c,soup_cata/1000,search.north/1000,search.east/1000,search.depth/1000,para); % note the unit transfer, m->km
+[Q,migvmax,tn,xn,yn,zn]=migmaxplt(wfmstk_c,mcm.plot,soup_cata/1000,search.north/1000,search.east/1000,search.depth/1000,para); % note the unit transfer, m->km
 idse=sub2ind([search.nsnr search.nser search.nsdr],xn,yn,zn); % location index for the MCM
 
 
 % set origin time of the located seismic event
 if isa(trace.t0,'datetime')
     % in datatime format
-    event.t0 = trace.t0 + seconds(mcm.st0(tn));
+    event.t0 = trace.t0 + seconds(mcm.st0(tn1));
     time_str = datestr(event.t0,'yyyy-mm-dd HH:MM:SS.FFF');
 else
     % in second relative to the starting time of seismic data
-    time_str = [num2str(mcm.st0(tn)) ' s'];
+    time_str = (mcm.st0(tn));
 end
 
 
+%calculate geometry error
+dnde=sqrt((search.dn^2)+((search.de^2)))
+dd_error=sqrt(((search.dd/2)^2)+((dnde/2)^2))
+
+
+j=length(xn)
+
+xn_av=(mean(xn)-1)*search.dn;
+yn_av=(mean(yn)-1)*search.de;
+zn_av=(mean(zn)-1)*search.dd;
+
 % print the location results
+filename=sprintf(mcm.output)
+fileID = fopen(filename,'w')
+fprintf(fileID,'Quantile of 99.9: %f.\n',Q)
+fprintf(fileID,'Minimum coherency value: %f.\n',migv_min)
+fprintf(fileID,'Source prominance: %f.\n',max(wfmstk_c,[],'all')/mean(wfmstk_c,'all'));
+fprintf(fileID,'Noise variance: %f.\n',var(wfmstk_c,0,'all'));
+fprintf(fileID,'%6s %6s %6s %6s %6s %6s\n','Coh','Tstp','Time','North','East','Depth');
+for i = 1:j
+    %if tn(i) > 550 %&& tn(i) < 3000
+    fprintf(fileID,'%6f %2f %3f %2f %2f %2f\n',migvmax(i),tn(i),time_str(i),search.soup(idse(i),:));
+    %end
+end
+
+fclose(fileID)
+
 fprintf('Maximum coherence value: %f.\n',migv_max); % maximum coherency value in the volume
-fprintf('Origin time (no calibration): %s.\n',time_str); % origin time of the located event
-fprintf('Event location: North: %f, East: %f, Depth: %f m.\n',search.soup(idse,:)); % located event locations
+fprintf('Origin time (no calibration): %s.\n',time_str(1)); % origin time of the located event
+fprintf('Event location: North: %f, East: %f, Depth: %f m.\n',search.soup(idse(1),:)); % located event locations
 if ~isempty(mcm.utmstruct)
     [event.latitude,event.longitude]=minvtran(mcm.utmstruct,search.soup(idse,2),search.soup(idse,1)); % transfer Cartesian (m) to Geodetic coordinate (degree)
     event.depth = search.soup(idse,3);
     fprintf('Latitude: %f; Longitude: %f; Depth: %f m.\n',event.latitude,event.longitude,event.depth); % located event locations
 end
+
 fprintf('Source prominance: %f.\n',max(wfmstk_c,[],'all')/mean(wfmstk_c,'all'));
 fprintf('Noise variance: %f.\n',var(wfmstk_c,0,'all'));
 
@@ -113,7 +145,15 @@ rwin=60; % right window length for showing seismic data, in second
 nre=size(trace.data,1); % number of stations used in MCM
 
 
+
+
 % sort out which waveform to plot after migration
+
+
+
+if mcm.plot==2 || mcm.plot==3 
+    
+    
 if mcm.chrplot
     % plotting characteristic functions
     data_show = transpose(trace.data);
@@ -129,10 +169,10 @@ else
 end
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Display results without origin tima calibration
 % display the arrival times of seismic event on the recorded seismic data
-et0=mcm.st0(tn); % the located origin time
+et0=mcm.st0(tn(1)); % the located origin time
 
 % make sure the set time range is not out of boundary
 if lwin>et0
@@ -178,7 +218,7 @@ end
 % display the waveforms of different stations together, station index order
 tp = trace.t0+seconds(et0+trace.travelp(idse,:)); % P-wave arrivaltimes
 ts = trace.t0+seconds(et0+trace.travels(idse,:)); % S-wave arrivaltimes
-seisrsdisp(exwfm,trace.dt,trace.name,exwfm_t0,tp,ts);
+seisrsdisp(exwfm,trace.dt,trace.name,exwfm_t0);
 title('Record section (MCM no t0 calibration)');
 
 % record section, source-receiver distance order
@@ -197,7 +237,7 @@ title('Record section (MCM no t0 calibration)');
 %--------------------------------------------------------------------------
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Display results with origin time calibration
 if isfield(mcm,'pperiod')
     tphase=mcm.pperiod;
@@ -205,7 +245,7 @@ else
     tphase=0.45; % default period of the seismic phase, in second
 end
 
-et0=mcm.st0(tn)+mcm.tpwind-tphase; % the calibrated origin time
+et0=mcm.st0(tn(1))+mcm.tpwind-tphase; % the calibrated origin time
 
 % make sure the set time range is not out of boundary
 if lwin>et0
@@ -251,7 +291,7 @@ end
 % display the waveforms of different stations together, station index order
 tp = trace.t0+seconds(et0+trace.travelp(idse,:)); % P-wave arrivaltimes
 ts = trace.t0+seconds(et0+trace.travels(idse,:)); % S-wave arrivaltimes
-seisrsdisp(exwfm,trace.dt,trace.name,exwfm_t0,tp,ts);
+seisrsdisp(exwfm,trace.dt,trace.name,exwfm_t0);
 title('Record section (MCM with t0 calibrated)');
 
 % record section, source-receiver distance order
@@ -317,6 +357,8 @@ if ~isempty(earthquake)
     dispwfscn(data_show,trace.recp/1000,soup_cata/1000,trace.dt,et0ca,trace.travelp(idseca,:),trace.travels(idseca,:),[],trace.t0); % note unit transfer, m->km
     title('Record section (Catalog)');
 end
-%--------------------------------------------------------------------------
+
+end
+% %--------------------------------------------------------------------------
 
 end

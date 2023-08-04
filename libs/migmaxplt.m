@@ -1,4 +1,4 @@
-function [tn,xn,yn,zn]=migmaxplt(data,soup,tarxr,taryr,tarzr,para)
+function [Q,mgvmax,tn,xn,yn,zn]=migmaxplt(data,Mplot,soup,tarxr,taryr,tarzr,para)
 % This function is used to find the maximum value of the 4D migration data.
 % This function also plots the X, Y and Z profiles through the maximum value.
 % This function also plots the stacking traces at the located source position.
@@ -41,11 +41,45 @@ end
 
 
 % find the position of the maximum value in the 4D data
-[mgvmax,indx]=max(data(:)); % index of maximum value in the 1D data
-[tn,xn,yn,zn]=ind2sub(size(data),indx); % transfer the index to 4D subscribs
+[migv_max,indx]=max(data(:)); % index of maximum value in the 1D data
+[tn1,xn1,yn1,zn1]=ind2sub(size(data),indx); % transfer the index to 4D subscribs
+
+
+Q=quantile(data(:),0.9999)
+
+[ Avec, indx ] = sort(data(:),1,'descend');
+mgvmax=0
+tn=0
+xn=0
+yn=0
+zn=0
+
+
+parfor k=1:length(Avec)
+    if Avec(k) > Q
+        mgvmax=[mgvmax ; Avec(k)]
+        [tng,xng,yng,zng]=ind2sub(size(data),indx(k));
+        tn = [tn ; tng]
+        xn = [xn ; xng]
+        yn = [yn ; yng]
+        zn = [zn ; zng]
+    end
+    
+end
+ 
+ mgvmax=mgvmax(2:end)
+ tn = tn(2:end)
+ xn = xn(2:end)
+ yn = yn(2:end)
+ zn = zn(2:end)
+
+
+
+
+
 
 if ~isempty(para.ctlpct)
-    ctlv = para.ctlpct*mgvmax; % determine the contour-line level
+    ctlv = para.ctlpct*mgvmax(1); % determine the contour-line level
 end
 
 % define source location
@@ -61,17 +95,19 @@ if ~isempty(soup)
 else
     % no input for source location, define the source using the maximum
     % migration value in the data
-    s1id=[xn,yn,zn]; % the index of the source, i.e. the point having the maximum migration value
-    soup=[xxr(xn),yyr(yn),zzr(zn)]; % the location of the source
+    s1id=[xn1,yn1,zn1]; % the index of the source, i.e. the point having the maximum migration value
+    soup=[xxr(xn1),yyr(yn1),zzr(zn1)]; % the location of the source
 end
 
 
 % load a specified colormap
 load mycolor1.mat;
 
+if Mplot==1 || Mplot==3 
+
 % Plot the three profiles along the maximum migration value in the volume
 % plot the X profile
-pdis=reshape(data(tn,xn,:,:),nyr,nzr)'; % extract the X profile
+pdis=reshape(data(tn1,xn1,:,:),nyr,nzr)'; % extract the X profile
 if ~isvector(pdis)
     xx=[taryr(1) taryr(2)];yy=[tarzr(1) tarzr(2)]; % horizontal and vertical range
     figure;imagesc(xx,yy,pdis);colormap('jet');colorbar; hold on;
@@ -89,7 +125,7 @@ if ~isvector(pdis)
 end
 
 % plot the Y profile
-pdis=reshape(data(tn,:,yn,:),nxr,nzr)'; % extract the Y profile
+pdis=reshape(data(tn1,:,yn1,:),nxr,nzr)'; % extract the Y profile
 if ~isvector(pdis)
     xx=[tarxr(1) tarxr(2)];yy=[tarzr(1) tarzr(2)]; % horizontal and vertical range
     figure;imagesc(xx,yy,pdis);colormap('jet');colorbar; hold on;
@@ -107,7 +143,7 @@ if ~isvector(pdis)
 end
 
 % plot the Z profile
-pdis=reshape(data(tn,:,:,zn),nxr,nyr);
+pdis=reshape(data(tn1,:,:,zn1),nxr,nyr);
 if ~isvector(pdis)
     xx=[taryr(1) taryr(2)];yy=[tarxr(1) tarxr(2)]; % horizontal and vertical range
     figure;imagesc(xx,yy,pdis);colormap('jet');colorbar; hold on;
@@ -128,15 +164,15 @@ end
 figure;
 if ~isempty(para.taxis)
     % has input time axis
-    plot(para.taxis,data(:,xn,yn,zn),'k','linewidth',1.6,'Marker','o','MarkerFaceColor','k','MarkerSize',2);
+    plot(para.taxis,data(:,xn1,yn1,zn1),'k','linewidth',1.6,'Marker','o','MarkerFaceColor','k','MarkerSize',2);
     hold on;
-    plot(para.taxis(tn),data(tn,xn,yn,zn),'r','Marker','o','MarkerFaceColor','r','MarkerSize',6);
+    plot(para.taxis(tn1),data(tn1,xn1,yn1,zn1),'r','Marker','o','MarkerFaceColor','r','MarkerSize',6);
     xlabel('Time');
 else
     % no input time axis
-    plot(data(:,xn,yn,zn),'k','linewidth',1.6,'Marker','o','MarkerFaceColor','k','MarkerSize',2); 
+    plot(data(:,xn1,yn1,zn1),'k','linewidth',1.6,'Marker','o','MarkerFaceColor','k','MarkerSize',2); 
     hold on;
-    plot(tn,data(tn,xn,yn,zn),'r','Marker','o','MarkerFaceColor','r','MarkerSize',6);
+    plot(tn1,data(tn1,xn1,yn1,zn1),'r','Marker','o','MarkerFaceColor','r','MarkerSize',6);
     xlabel('Time samples');
 end
 ylabel('Stacked energy'); title('Stacking trace at the located source position');
@@ -200,5 +236,7 @@ if ~isvector(pdis)
     plot3(soup(2),soup(1),pdis(s1id(1),s1id(2)),'ko','MarkerSize',6,'MarkerFaceColor','k'); hold on;
     axis tight; axis off; colormap('jet'); colorbar; title('East-North plane (projected)'); %caxis([0 1]);
 end
+end
+
 
 end

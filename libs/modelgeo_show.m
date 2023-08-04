@@ -85,7 +85,7 @@ end
 % positions of an earthquake
 if ~isempty(earthquake)
     [seast,snorth,sdepth]=geod2cart(earthquake.latitude,earthquake.longitude,-earthquake.depth);
-    seisp=[snorth,seast,sdepth]; % earthquake positions
+    seisp=[1400,600,2000]; % earthquake positions
 else
     seisp=[];
 end

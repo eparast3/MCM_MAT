@@ -90,6 +90,9 @@ else
     end
 end
 
+%search=
+
+
 % output mat format files
 save('stations_traveltime_search.mat','stations','search');
 

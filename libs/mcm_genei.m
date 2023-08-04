@@ -294,13 +294,13 @@ switch mcm.run
             % In this situation, the input time range is in datetime format.
             
             % chech if the input time range are feasible
-            if mcm.test.mtrg(1)<mcm.dtimerg(1) || mcm.test.mtrg(1)>mcm.test.mtrg(2) || mcm.test.mtrg(2)>=mcm.dtimerg(2)
-                error('Incorrect input for mcm.test.mtrg! Not applicable.');
-            end
+%             if mcm.test.mtrg(1)<mcm.dtimerg(1) || mcm.test.mtrg(1)>mcm.test.mtrg(2) || mcm.test.mtrg(2)>=mcm.dtimerg(2)
+%                 error('Incorrect input for mcm.test.mtrg! Not applicable.');
+%             end
             
             % obtain the searching origin time serials
-            time_start=seconds(mcm.test.mtrg(1)-mcm.datat0); % starting time for migration, relative to data_t0 in second
-            time_end=seconds(mcm.test.mtrg(2)-mcm.datat0); % ending time for migration, relative to data_t0 in second
+            time_start=second(mcm.test.mtrg(1)-mcm.datat0); % starting time for migration, relative to data_t0 in second
+            time_end=second(mcm.test.mtrg(2)-mcm.datat0); % ending time for migration, relative to data_t0 in second
             mcm.st0=time_start:mcm.dt0:time_end;
         else
             % In this situation, the input time range is in second
